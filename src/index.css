@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+@layer base {
+  *, ::before, ::after {
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif !important;
+  }
+
+  body {
+    background-color: #040607;
+    color: #F3F4F6;
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif !important;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: -10px;
+    z-index: -1;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.48), rgba(0, 0, 0, 0.48)), url("https://i.ibb.co/QF7BvSDm/back.webp");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(3px);
+    pointer-events: none;
+  }
+}
+
+/* Custom Adsata / DOM'SCRIBER Style Hero CTA Button */
+.hero-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.75rem;
+  background: linear-gradient(135deg, #22E025 0%, #15B018 100%);
+  color: #050E06;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 25px rgba(34, 224, 37, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.hero-cta:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 35px rgba(34, 224, 37, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  background: linear-gradient(135deg, #30FF33 0%, #1CC91F 100%);
+}
+
+.hero-cta:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.hero-cta-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 50%;
+  transition: transform 0.25s ease;
+}
+
+.hero-cta:hover .hero-cta-arrow {
+  transform: translate(2px, -2px);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* Secondary outline button with neon border */
+.hero-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(21, 58, 45, 0.35);
+  color: #22E025;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(34, 224, 37, 0.4);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.hero-cta-secondary:hover {
+  background: rgba(34, 224, 37, 0.15);
+  border-color: rgba(34, 224, 37, 0.8);
+  box-shadow: 0 0 20px rgba(34, 224, 37, 0.25);
+  color: #39FF14;
+}
+
+/* Glow effects */
+.glow-green {
+  box-shadow: 0 0 30px rgba(34, 224, 37, 0.25);
+}
+
+.glow-green-sm {
+  box-shadow: 0 0 15px rgba(34, 224, 37, 0.3);
+}
+
+.glow-border {
+  border-color: rgba(34, 224, 37, 0.4);
+  box-shadow: 0 0 15px rgba(34, 224, 37, 0.2);
+}
+
+/* Animated status pulse dot */
+.pulse-green {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #22E025;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #22E025;
+  animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 224, 37, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(34, 224, 37, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 224, 37, 0);
+  }
+}
+
+/* Dark theme card container */
+.adsata-card {
+  background: #111517;
+  border: 1px solid #1E272B;
+  border-radius: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.adsata-card:hover {
+  border-color: rgba(34, 224, 37, 0.3);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0E0F;
+}
+::-webkit-scrollbar-thumb {
+  background: #1F2A2E;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #22E025;
+}
+
