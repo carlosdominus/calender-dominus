@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 
 const app = express();
@@ -7,13 +8,45 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// In-memory data store for call agendas, webhook logs, and confirmations
+// Persistent File Storage Helper
+const DATA_DIR = path.join(process.cwd(), "data");
+const PRESENCE_FILE = path.join(DATA_DIR, "presences.json");
+
+function ensureDataDirectory() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function loadPresencesFromDisk(): PresenceConfirmation[] {
+  try {
+    ensureDataDirectory();
+    if (fs.existsSync(PRESENCE_FILE)) {
+      const data = fs.readFileSync(PRESENCE_FILE, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error("Erro ao carregar presenças do disco:", err);
+  }
+  return [];
+}
+
+function savePresencesToDisk(presences: PresenceConfirmation[]) {
+  try {
+    ensureDataDirectory();
+    fs.writeFileSync(PRESENCE_FILE, JSON.stringify(presences, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Erro ao salvar presenças no disco:", err);
+  }
+}
+
+// In-memory data store with disk backing for confirmations
 interface CallEvent {
   id: string;
   date: string; // YYYY-MM-DD
   formattedDate: string; // e.g. "Segunda-feira, 28/07/2026"
   dayOfWeek: "Segunda-feira" | "Quarta-feira" | "Sexta-feira";
-  time: string; // "14:30"
+  time: string; // "16:00"
   topic: string;
   host: string;
   status: "scheduled" | "dispatched" | "completed" | "cancelled";
@@ -43,19 +76,50 @@ interface WebhookLog {
   timestamp: string;
 }
 
-// Initial mock data & config
+// Initial data & config
 let DEFAULT_WEBHOOK_URL = "https://nen.auto-jornada.space/webhook/calendario-calls-adsata";
 
-// Pre-fill some topics for Mon, Wed, Fri calls
 let callTopics: Record<string, { topic: string; host: string }> = {
   "Segunda-feira": { topic: "Call de Alinhamento Semanal & Metas Adsata", host: "Time de Ops" },
   "Quarta-feira": { topic: "Review de Performance, Tráfego e Campanhas", host: "Time de Mídia" },
   "Sexta-feira": { topic: "Fechamento Semanal, Retrospectiva e Próximos Passos", host: "Gestão & Diretoria" },
 };
 
-let presenceList: PresenceConfirmation[] = [];
+// Load presence records from persistent file
+let presenceList: PresenceConfirmation[] = loadPresencesFromDisk();
 
 let webhookLogs: WebhookLog[] = [];
+
+// Company Authentication Route
+app.post("/api/auth/login", (req, res) => {
+  const { code, password, name, role } = req.body;
+  const accessKey = (code || password || "").toString().trim().toLowerCase();
+  
+  // Valid access keys for Adsata / Dominus team
+  const validKeys = ["adsata", "dominus", "adsata2026", "dominus2026", "123456"];
+  const customPass = process.env.COMPANY_PASSWORD ? process.env.COMPANY_PASSWORD.toLowerCase() : null;
+
+  const isValid = validKeys.includes(accessKey) || (customPass && accessKey === customPass);
+
+  if (!isValid) {
+    return res.status(401).json({
+      success: false,
+      error: "Código de acesso incorreto. Utilize o código da empresa (ex: adsata)."
+    });
+  }
+
+  const userSession = {
+    name: name?.trim() || "Membro Adsata",
+    role: role || "Equipe Adsata",
+    company: "Adsata / Dominus",
+    token: `token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  };
+
+  res.json({
+    success: true,
+    user: userSession,
+  });
+});
 
 // API Routes
 
@@ -175,6 +239,7 @@ app.post("/api/confirm-presence", async (req, res) => {
   };
 
   presenceList.unshift(newPresence);
+  savePresencesToDisk(presenceList);
 
   // If requested to notify n8n about response
   let n8nNotification = null;

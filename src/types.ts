@@ -45,6 +45,14 @@ export interface WebhookLog {
   timestamp: string;
 }
 
+export interface UserSession {
+  name: string;
+  role: string;
+  email?: string;
+  company: string;
+  token: string;
+}
+
 export interface AppConfig {
   webhookUrl: string;
   callDays: string[];

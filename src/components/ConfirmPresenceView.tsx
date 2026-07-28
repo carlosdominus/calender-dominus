@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, User, Sparkles, Check } from "lucide-react";
+import { User, Sparkles, Check } from "lucide-react";
 import { CallOccurrence } from "../types";
 
 interface ConfirmPresenceViewProps {
@@ -9,7 +9,7 @@ interface ConfirmPresenceViewProps {
 
 export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, onDone }) => {
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Gestor de Mídia / Tráfego");
+  const [role, setRole] = useState("Editor de Criativo");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -27,7 +27,6 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
           name,
           role,
           status: "confirmed",
-          notifyN8n: true,
         }),
       });
 
@@ -92,13 +91,14 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full bg-[#0B0F10] border border-[#1E272B] focus:border-[#22E025] rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#22E025] transition-all"
+                className="w-full bg-[#0B0F10] border border-[#1E272B] focus:border-[#22E025] rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#22E025] transition-all cursor-pointer"
               >
-                <option value="Gestor de Mídia / Tráfego">Gestor de Mídia / Tráfego</option>
-                <option value="Head de Operações">Head de Operações</option>
-                <option value="Comercial / Vendas">Comercial / Vendas</option>
-                <option value="Copywriter / Criativos">Copywriter / Criativos</option>
-                <option value="Diretoria">Diretoria</option>
+                <option value="Editor de Criativo">Editor de Criativo</option>
+                <option value="Copy de Criativo">Copy de Criativo</option>
+                <option value="Copy de VSL">Copy de VSL</option>
+                <option value="Editor de VSL">Editor de VSL</option>
+                <option value="Gestor de Tráfego">Gestor de Tráfego</option>
+                <option value="Head">Head</option>
               </select>
             </div>
 
