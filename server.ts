@@ -80,9 +80,9 @@ interface WebhookLog {
 let DEFAULT_WEBHOOK_URL = "https://nen.auto-jornada.space/webhook/calendario-calls-adsata";
 
 let callTopics: Record<string, { topic: string; host: string }> = {
-  "Segunda-feira": { topic: "Call de Alinhamento Semanal & Metas Adsata", host: "Time de Ops" },
-  "Quarta-feira": { topic: "Review de Performance, Tráfego e Campanhas", host: "Time de Mídia" },
-  "Sexta-feira": { topic: "Fechamento Semanal, Retrospectiva e Próximos Passos", host: "Gestão & Diretoria" },
+  "Segunda-feira": { topic: "Alinhamento Semanal", host: "Equipe Adsata" },
+  "Quarta-feira": { topic: "Revisão de Meio de Semana", host: "Equipe Adsata" },
+  "Sexta-feira": { topic: "Fechamento da Semana", host: "Equipe Adsata" },
 };
 
 // Load presence records from persistent file
