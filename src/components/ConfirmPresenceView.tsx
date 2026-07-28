@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, Clock, AlertTriangle, User, Mail, Sparkles, Send, Check } from "lucide-react";
+import { CheckCircle2, User, Sparkles, Check } from "lucide-react";
 import { CallOccurrence } from "../types";
 
 interface ConfirmPresenceViewProps {
@@ -10,8 +10,6 @@ interface ConfirmPresenceViewProps {
 export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, onDone }) => {
   const [name, setName] = useState("");
   const [role, setRole] = useState("Gestor de Mídia / Tráfego");
-  const [status, setStatus] = useState<"confirmed" | "late" | "absent">("confirmed");
-  const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -28,8 +26,7 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
           callId: call.id,
           name,
           role,
-          status,
-          notes,
+          status: "confirmed",
           notifyN8n: true,
         }),
       });
@@ -105,68 +102,7 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
               </select>
             </div>
 
-            {/* Status Selection */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold uppercase text-gray-300">
-                Sua Presença
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setStatus("confirmed")}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-bold border flex flex-col items-center gap-1 transition-all ${
-                    status === "confirmed"
-                      ? "bg-[#153A2D] text-[#22E025] border-[#22E025] shadow-[0_0_15px_rgba(34,224,37,0.3)]"
-                      : "bg-[#0B0F10] text-gray-400 border-[#1E272B]"
-                  }`}
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Confirmado
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setStatus("late")}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-bold border flex flex-col items-center gap-1 transition-all ${
-                    status === "late"
-                      ? "bg-amber-950/80 text-amber-400 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                      : "bg-[#0B0F10] text-gray-400 border-[#1E272B]"
-                  }`}
-                >
-                  <Clock className="w-4 h-4" />
-                  Com atraso
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setStatus("absent")}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-bold border flex flex-col items-center gap-1 transition-all ${
-                    status === "absent"
-                      ? "bg-rose-950/80 text-rose-400 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.2)]"
-                      : "bg-[#0B0F10] text-gray-400 border-[#1E272B]"
-                  }`}
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  Ausente
-                </button>
-              </div>
-            </div>
-
-            {/* Optional note */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold uppercase text-gray-300">
-                Observação (Opcional)
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ex: Vou apresentar o relatório de resultados."
-                className="w-full bg-[#0B0F10] border border-[#1E272B] focus:border-[#22E025] rounded-xl py-2.5 px-4 text-xs text-white focus:outline-none"
-              />
-            </div>
-
-            {/* CTA Button in requested style */}
+            {/* CTA Button */}
             <div className="pt-2">
               <button
                 type="submit"
@@ -190,7 +126,7 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
             </div>
 
             <p className="text-[11px] text-gray-500 text-center">
-              Sua resposta será registrada para o controle do time.
+              Sua presença será registrada para a reunião.
             </p>
           </form>
         ) : (
@@ -204,7 +140,7 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
             </h3>
 
             <p className="text-xs text-gray-300 max-w-xs mx-auto">
-              Obrigado, <strong className="text-white">{name}</strong>! Presença registrada com sucesso no calendário.
+              Obrigado, <strong className="text-white">{name}</strong>! Sua presença foi registrada com sucesso.
             </p>
 
             <button

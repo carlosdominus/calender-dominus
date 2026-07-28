@@ -1,20 +1,44 @@
 import React, { useState, useEffect } from "react";
-import { Users, CheckCircle2, Clock, AlertTriangle, Search } from "lucide-react";
-import { PresenceConfirmation } from "../types";
+import {
+  Users,
+  CheckCircle2,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  UserCheck
+} from "lucide-react";
+import { PresenceConfirmation, CallOccurrence } from "../types";
+import { getUpcomingCalls } from "../utils/calendar";
+
+interface CallGroup {
+  callId: string;
+  date: string;
+  formattedDate: string;
+  dayOfWeek: string;
+  topic: string;
+  time: string;
+  isToday?: boolean;
+  presences: PresenceConfirmation[];
+}
 
 export const PresenceDashboardView: React.FC = () => {
   const [presences, setPresences] = useState<PresenceConfirmation[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [expandedCallIds, setExpandedCallIds] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
 
   const fetchPresences = async () => {
     try {
       const res = await fetch("/api/presences");
       if (res.ok) {
-        const data = await res.json();
+        const data: PresenceConfirmation[] = await res.json();
         setPresences(data);
       }
     } catch (err) {
       console.error("Erro ao carregar presenças:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -22,107 +46,282 @@ export const PresenceDashboardView: React.FC = () => {
     fetchPresences();
   }, []);
 
-  const filtered = presences.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Generate call groups using upcoming/past calendar calls + existing presences
+  const calendarCalls = getUpcomingCalls(6);
 
-  const confirmedCount = presences.filter(p => p.status === "confirmed").length;
-  const lateCount = presences.filter(p => p.status === "late").length;
-  const absentCount = presences.filter(p => p.status === "absent").length;
+  // Map calendar calls to groups
+  const groupsMap = new Map<string, CallGroup>();
+
+  // Add calendar calls first
+  calendarCalls.forEach((call: CallOccurrence) => {
+    groupsMap.set(call.id, {
+      callId: call.id,
+      date: call.date,
+      formattedDate: call.formattedDate,
+      dayOfWeek: call.dayOfWeek,
+      topic: call.topic,
+      time: call.time,
+      isToday: call.isToday,
+      presences: [],
+    });
+  });
+
+  // Distribute presences into groups
+  presences.forEach((p) => {
+    if (groupsMap.has(p.callId)) {
+      groupsMap.get(p.callId)!.presences.push(p);
+    } else {
+      const callDateStr = p.timestamp ? p.timestamp.split("T")[0] : new Date().toISOString().split("T")[0];
+      const fallbackTitle = `Call do dia ${callDateStr.split("-").reverse().join("/")}`;
+      
+      groupsMap.set(p.callId, {
+        callId: p.callId,
+        date: callDateStr,
+        formattedDate: fallbackTitle,
+        dayOfWeek: "Call Especial",
+        topic: "Reunião de Equipe Adsata",
+        time: "16:00",
+        presences: [p],
+      });
+    }
+  });
+
+  const allGroups = Array.from(groupsMap.values());
+
+  // Auto-expand the first call or today's call on initial load if expandedCallIds is empty
+  useEffect(() => {
+    if (allGroups.length > 0 && Object.keys(expandedCallIds).length === 0) {
+      const todayGroup = allGroups.find(g => g.isToday) || allGroups.find(g => g.presences.length > 0) || allGroups[0];
+      if (todayGroup) {
+        setExpandedCallIds({ [todayGroup.callId]: true });
+      }
+    }
+  }, [presences]);
+
+  const toggleExpand = (callId: string) => {
+    setExpandedCallIds((prev) => ({
+      ...prev,
+      [callId]: !prev[callId],
+    }));
+  };
+
+  const toggleExpandAll = () => {
+    const allExpanded = allGroups.every((g) => expandedCallIds[g.callId]);
+    const nextState: Record<string, boolean> = {};
+    allGroups.forEach((g) => {
+      nextState[g.callId] = !allExpanded;
+    });
+    setExpandedCallIds(nextState);
+  };
+
+  // Filter groups by search term (search inside member name, role, topic, date, or dayOfWeek)
+  const filteredGroups = allGroups.filter((group) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    
+    const matchesGroup =
+      group.formattedDate.toLowerCase().includes(term) ||
+      group.dayOfWeek.toLowerCase().includes(term) ||
+      group.topic.toLowerCase().includes(term) ||
+      group.date.includes(term);
+
+    const matchesMember = group.presences.some(
+      (p) =>
+        p.name.toLowerCase().includes(term) ||
+        p.role.toLowerCase().includes(term)
+    );
+
+    return matchesGroup || matchesMember;
+  });
+
+  // Calculate totals
+  const totalConfirmed = presences.length;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 py-4">
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-[#22E025]" />
-            Lista de Presença Confirmada
+            Presenças por Call
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
-            Membros confirmados nas reuniões recorrentes (14:30h).
+            Clique em uma call para visualizar os participantes confirmados.
           </p>
         </div>
 
-        {/* Stats Pills */}
+        {/* Global Stats */}
         <div className="flex items-center gap-2 text-xs font-bold">
-          <span className="px-3 py-1 rounded-full bg-[#153A2D] text-[#22E025] border border-[#22E025]/30 flex items-center gap-1">
+          <span className="px-3 py-1.5 rounded-full bg-[#153A2D] text-[#22E025] border border-[#22E025]/30 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            {confirmedCount} Confirmados
+            {totalConfirmed} Confirmados
           </span>
-          {lateCount > 0 && (
-            <span className="px-3 py-1 rounded-full bg-amber-950 text-amber-400 border border-amber-500/30 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {lateCount} Atrasos
-            </span>
-          )}
         </div>
       </div>
 
-      {/* Main Table Card */}
-      <div className="adsata-card p-5 space-y-4">
-        <div className="relative">
-          <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+      {/* Toolbar: Search and Collapse/Expand */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#0B0F10] border border-[#1E272B] p-3 rounded-2xl">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-2.5" />
           <input
             type="text"
-            placeholder="Buscar membro..."
+            placeholder="Buscar por nome, cargo ou data da call..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#0B0F10] border border-[#1E272B] focus:border-[#22E025] rounded-xl py-2 pl-10 pr-4 text-xs text-white focus:outline-none"
+            className="w-full bg-[#12181B] border border-[#1E272B] focus:border-[#22E025] rounded-xl py-1.5 pl-10 pr-4 text-xs text-white focus:outline-none transition-all"
           />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-gray-300">
-            <thead className="bg-[#0B0F10] text-gray-400 font-bold border-b border-[#1E272B] uppercase text-[10px]">
-              <tr>
-                <th className="py-2.5 px-3">Nome</th>
-                <th className="py-2.5 px-3">Cargo</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">Observação</th>
-                <th className="py-2.5 px-3">Horário</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#1E272B]">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-gray-500">
-                    Nenhum registro encontrado.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#12181B] transition-colors">
-                    <td className="py-3 px-3 font-bold text-white">
-                      {item.name}
-                    </td>
-                    <td className="py-3 px-3 text-gray-400">{item.role}</td>
-                    <td className="py-3 px-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                          item.status === "confirmed"
-                            ? "bg-[#153A2D] text-[#22E025] border-[#22E025]/30"
-                            : item.status === "late"
-                            ? "bg-amber-950 text-amber-400 border-amber-500/30"
-                            : "bg-rose-950 text-rose-400 border-rose-500/30"
-                        }`}
-                      >
-                        {item.status === "confirmed" ? "Confirmado" : item.status === "late" ? "Atraso" : "Ausente"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-gray-400 max-w-xs truncate">
-                      {item.notes || "—"}
-                    </td>
-                    <td className="py-3 px-3 text-[10px] font-mono text-gray-500">
-                      {new Date(item.timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <button
+          onClick={toggleExpandAll}
+          className="w-full sm:w-auto px-4 py-1.5 rounded-xl bg-[#161D20] hover:bg-[#1E272B] border border-[#232D32] text-xs font-bold text-gray-300 transition-colors cursor-pointer text-center"
+        >
+          {allGroups.every((g) => expandedCallIds[g.callId]) ? "Recolher Todas" : "Expandir Todas"}
+        </button>
+      </div>
+
+      {/* List of Calls */}
+      <div className="space-y-4">
+        {filteredGroups.length === 0 ? (
+          <div className="adsata-card p-8 text-center space-y-3">
+            <Calendar className="w-10 h-10 text-gray-600 mx-auto opacity-50" />
+            <p className="text-sm font-bold text-gray-300">Nenhuma call encontrada.</p>
+            <p className="text-xs text-gray-500">
+              Tente buscar por outro termo.
+            </p>
+          </div>
+        ) : (
+          filteredGroups.map((group) => {
+            const isExpanded = !!expandedCallIds[group.callId];
+            const groupPresences = group.presences;
+            
+            // Filter by search if applied
+            const visiblePresences = groupPresences.filter((p) => {
+              if (!searchTerm.trim()) return true;
+              const term = searchTerm.toLowerCase();
+              return (
+                p.name.toLowerCase().includes(term) ||
+                p.role.toLowerCase().includes(term)
+              );
+            });
+
+            const groupConfirmed = groupPresences.length;
+
+            return (
+              <div
+                key={group.callId}
+                className={`adsata-card transition-all duration-200 overflow-hidden ${
+                  group.isToday ? "border-[#22E025]/50 shadow-[0_0_20px_rgba(34,224,37,0.15)]" : ""
+                }`}
+              >
+                {/* Accordion Header */}
+                <button
+                  onClick={() => toggleExpand(group.callId)}
+                  className="w-full p-4 sm:p-5 flex items-center justify-between text-left gap-4 hover:bg-[#12181B]/60 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                        group.isToday
+                          ? "bg-[#153A2D] text-[#22E025] border-[#22E025]"
+                          : "bg-[#0B0F10] text-gray-400 border-[#1E272B]"
+                      }`}
+                    >
+                      <Calendar className="w-5 h-5" />
+                    </div>
+
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
+                          Call de {group.formattedDate}
+                        </h3>
+                        {group.isToday && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-[#22E025] text-black animate-pulse">
+                            Hoje
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-gray-400 font-medium truncate">
+                        {group.topic} • <span className="text-gray-300">{group.time}h</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Stats & Expand Toggle */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="px-2.5 py-1 rounded-md bg-[#153A2D] text-[#22E025] border border-[#22E025]/20 text-[11px] font-bold">
+                      {groupConfirmed} confirmados
+                    </span>
+
+                    <div className="w-8 h-8 rounded-lg bg-[#0B0F10] border border-[#1E272B] flex items-center justify-center text-gray-400 hover:text-white">
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Accordion Body: Participants List */}
+                {isExpanded && (
+                  <div className="border-t border-[#1E272B] bg-[#070A0B] p-4 sm:p-5 space-y-4">
+                    {visiblePresences.length === 0 ? (
+                      <div className="py-6 px-4 text-center rounded-xl bg-[#0B0F10] border border-[#1E272B]/60 space-y-2">
+                        <UserCheck className="w-8 h-8 text-gray-600 mx-auto" />
+                        <p className="text-xs font-bold text-gray-300">
+                          Nenhuma presença confirmada nesta call ainda.
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          Os membros que confirmarem presença através do formulário aparecerão aqui.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl border border-[#1E272B] bg-[#0B0F10]">
+                        <table className="w-full text-left text-xs text-gray-300">
+                          <thead className="bg-[#12181B] text-gray-400 font-bold border-b border-[#1E272B] uppercase text-[10px]">
+                            <tr>
+                              <th className="py-2.5 px-3">Participante</th>
+                              <th className="py-2.5 px-3">Cargo / Área</th>
+                              <th className="py-2.5 px-3">Status</th>
+                              <th className="py-2.5 px-3 text-right">Confirmado em</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#1E272B]">
+                            {visiblePresences.map((p) => (
+                              <tr key={p.id} className="hover:bg-[#151D21] transition-colors">
+                                <td className="py-3 px-3 font-bold text-white flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-[#16221D] border border-[#22E025]/40 text-[#22E025] flex items-center justify-center text-[10px] uppercase font-bold">
+                                    {p.name.charAt(0)}
+                                  </div>
+                                  {p.name}
+                                </td>
+                                <td className="py-3 px-3 text-gray-400">{p.role}</td>
+                                <td className="py-3 px-3">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase border bg-[#153A2D] text-[#22E025] border-[#22E025]/30">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    Confirmado
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 text-right text-[10px] font-mono text-gray-500">
+                                  {p.timestamp
+                                    ? new Date(p.timestamp).toLocaleTimeString("pt-BR", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

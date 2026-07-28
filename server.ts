@@ -53,28 +53,7 @@ let callTopics: Record<string, { topic: string; host: string }> = {
   "Sexta-feira": { topic: "Fechamento Semanal, Retrospectiva e Próximos Passos", host: "Gestão & Diretoria" },
 };
 
-let presenceList: PresenceConfirmation[] = [
-  {
-    id: "pres-1",
-    callId: "call-today",
-    name: "Carlos Eduardo",
-    email: "carlos@adsata.com",
-    role: "Gestor de Tráfego",
-    status: "confirmed",
-    notes: "Estararei pontual na call das 14:30h!",
-    timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    id: "pres-2",
-    callId: "call-today",
-    name: "Mariana Silva",
-    email: "mariana@adsata.com",
-    role: "Head de Operações",
-    status: "confirmed",
-    notes: "Pauta de clientes atualizada",
-    timestamp: new Date(Date.now() - 3600000 * 1).toISOString(),
-  }
-];
+let presenceList: PresenceConfirmation[] = [];
 
 let webhookLogs: WebhookLog[] = [];
 
@@ -85,7 +64,7 @@ app.get("/api/config", (req, res) => {
   res.json({
     webhookUrl: DEFAULT_WEBHOOK_URL,
     callDays: ["Segunda-feira", "Quarta-feira", "Sexta-feira"],
-    callTime: "14:30",
+    callTime: "16:00",
     timezone: "America/Sao_Paulo",
     topics: callTopics,
   });
@@ -126,12 +105,12 @@ app.post("/api/trigger-webhook", async (req, res) => {
     callId: callId || `call-${Date.now()}`,
     dayOfWeek: dayOfWeek || "Segunda-feira",
     date: date || new Date().toISOString().split("T")[0],
-    time: "14:30",
-    timeFormatted: "14:30h (Horário de Brasília)",
+    time: "16:00",
+    timeFormatted: "16:00h (Horário de Brasília)",
     topic: topic || "Call Semanal Adsata",
     host: host || "Equipe Adsata",
     confirmationUrl: finalConfirmationUrl,
-    messagePrompt: `🚨 *Call Adsata Hoje às 14:30h!*\n📌 *Pauta:* ${topic || "Alinhamento de Equipe"}\n👉 *Confirme sua presença aqui:* ${finalConfirmationUrl}`,
+    messagePrompt: `🚨 *Call Adsata Hoje às 16:00h!*\n📌 *Pauta:* ${topic || "Alinhamento de Equipe"}\n👉 *Confirme sua presença aqui:* ${finalConfirmationUrl}`,
     timestamp: new Date().toISOString(),
   };
 
@@ -284,12 +263,12 @@ function checkAndAutoTriggerWebhook() {
         callId: `call-${todayStr}`,
         dayOfWeek: dayName,
         date: todayStr,
-        time: "14:30",
-        timeFormatted: "14:30h (Horário de Brasília)",
+        time: "16:00",
+        timeFormatted: "16:00h (Horário de Brasília)",
         topic: topicInfo.topic,
         host: topicInfo.host,
         confirmationUrl,
-        messagePrompt: `🚨 *Call Adsata Hoje às 14:30h!*\n📌 *Pauta:* ${topicInfo.topic}\n👉 *Confirme sua presença aqui:* ${confirmationUrl}`,
+        messagePrompt: `🚨 *Call Adsata Hoje às 16:00h!*\n📌 *Pauta:* ${topicInfo.topic}\n👉 *Confirme sua presença aqui:* ${confirmationUrl}`,
         timestamp: new Date().toISOString(),
       };
 
