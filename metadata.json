@@ -1,6 +1,6 @@
 {
-  "name": "Adsata Calls & Automation Hub",
-  "description": "Sistema de calendário fixo para calls de Seg/Qua/Sex às 14:30h com integração n8n webhook e página de confirmação de presença.",
+  "name": "Calendário",
+  "description": "Sistema de calendário para calls corporativas da Adsata de Seg/Qua/Sex às 16:00h com confirmação de presença.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

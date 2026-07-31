@@ -45,6 +45,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    document.title = "Calendário";
     const calls = getUpcomingCalls(3);
     setUpcomingCalls(calls);
     if (calls.length > 0) {

@@ -220,7 +220,7 @@ app.post("/api/trigger-webhook", async (req, res) => {
 });
 
 // Record Presence Confirmation and Optionally Send Webhook back to n8n
-app.post("/api/confirm-presence", async (req, res) => {
+app.post("/api/confirm-presence", (req, res) => {
   const { callId, name, email, role, status, notes, notifyN8n } = req.body;
 
   if (!name || !callId) {
@@ -230,7 +230,7 @@ app.post("/api/confirm-presence", async (req, res) => {
   const newPresence: PresenceConfirmation = {
     id: `pres-${Date.now()}`,
     callId,
-    name,
+    name: name.trim(),
     email: email || "membro@adsata.com",
     role: role || "Membro da Equipe",
     status: status || "confirmed",
@@ -241,8 +241,14 @@ app.post("/api/confirm-presence", async (req, res) => {
   presenceList.unshift(newPresence);
   savePresencesToDisk(presenceList);
 
-  // If requested to notify n8n about response
-  let n8nNotification = null;
+  // Return success response immediately so the UI is instantaneous
+  res.json({
+    success: true,
+    presence: newPresence,
+    allPresences: presenceList.filter(p => p.callId === callId),
+  });
+
+  // Asynchronously trigger n8n notification in background
   if (notifyN8n !== false) {
     const payload = {
       event: "PRESENCA_CONFIRMADA_CALL",
@@ -267,30 +273,23 @@ app.post("/api/confirm-presence", async (req, res) => {
       timestamp: new Date().toISOString(),
     };
 
-    try {
-      const resp = await fetch(targetUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+    fetch(targetUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then(async (resp) => {
+        logEntry.statusCode = resp.status;
+        logEntry.response = (await resp.text()).slice(0, 500);
+        logEntry.status = resp.ok ? "success" : "error";
+        webhookLogs.push(logEntry);
+      })
+      .catch((e: any) => {
+        logEntry.status = "error";
+        logEntry.response = e.message;
+        webhookLogs.push(logEntry);
       });
-      logEntry.statusCode = resp.status;
-      logEntry.response = (await resp.text()).slice(0, 500);
-      logEntry.status = resp.ok ? "success" : "error";
-    } catch (e: any) {
-      logEntry.status = "error";
-      logEntry.response = e.message;
-    }
-
-    webhookLogs.push(logEntry);
-    n8nNotification = logEntry;
   }
-
-  res.json({
-    success: true,
-    presence: newPresence,
-    n8nLog: n8nNotification,
-    allPresences: presenceList.filter(p => p.callId === callId),
-  });
 });
 
 // Automated daily trigger at 07:00 AM on Mon, Wed, Fri

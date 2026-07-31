@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { User, Sparkles, Check } from "lucide-react";
+import { User, Sparkles, Check, ArrowRight, AlertCircle } from "lucide-react";
 import { CallOccurrence } from "../types";
 
 interface ConfirmPresenceViewProps {
@@ -12,30 +12,45 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
   const [role, setRole] = useState("Editor de Criativo");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    const cleanName = name.trim();
+    if (!cleanName) {
+      setErrorMsg("Por favor, preencha o seu nome para confirmar.");
+      return;
+    }
 
+    setErrorMsg("");
     setIsSubmitting(true);
+
     try {
       const res = await fetch("/api/confirm-presence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           callId: call.id,
-          name,
+          name: cleanName,
           role,
           status: "confirmed",
         }),
       });
 
-      if (res.ok) {
+      const data = await res.json();
+
+      if (res.ok && data.success) {
         setSubmitted(true);
-        if (onDone) onDone();
+        // Automatically switch to Presenças tab after 1.5s so user sees success first
+        setTimeout(() => {
+          if (onDone) onDone();
+        }, 1500);
+      } else {
+        setErrorMsg(data.error || "Não foi possível registrar a presença. Tente novamente.");
       }
     } catch (err) {
       console.error("Erro ao confirmar presença:", err);
+      setErrorMsg("Falha na conexão com o servidor. Verifique sua internet.");
     } finally {
       setIsSubmitting(false);
     }
@@ -61,10 +76,18 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
       </div>
 
       {/* Confirmation Form Card */}
-      <div className="adsata-card p-6 sm:p-8 space-y-6 border-[#22E025]/40 shadow-[0_0_30px_rgba(0,0,0,0.6)]">
+      <div className="adsata-card p-6 sm:p-8 space-y-6 border-[#22E025]/40 shadow-[0_0_30px_rgba(0,0,0,0.6)] relative overflow-hidden">
+        
         {!submitted ? (
           <form onSubmit={handleSubmit} className="space-y-5">
             
+            {errorMsg && (
+              <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 text-xs font-medium flex items-center gap-2 animate-fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
             {/* Name */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold uppercase text-gray-300">
@@ -76,7 +99,10 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
                   type="text"
                   required
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (errorMsg) setErrorMsg("");
+                  }}
                   placeholder="Ex: Carlos Eduardo"
                   className="w-full bg-[#0B0F10] border border-[#1E272B] focus:border-[#22E025] rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#22E025] transition-all"
                 />
@@ -110,7 +136,7 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
                 className="hero-cta w-full cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <>Registrando...</>
+                  <>Registrando presença...</>
                 ) : (
                   <>
                     Confirmar Presença
@@ -126,28 +152,36 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
             </div>
 
             <p className="text-[11px] text-gray-500 text-center">
-              Sua presença será registrada para a reunião.
+              Sua presença será registrada para a reunião em tempo real.
             </p>
           </form>
         ) : (
-          <div className="py-6 text-center space-y-4">
-            <div className="w-14 h-14 rounded-full bg-[#153A2D] text-[#22E025] border border-[#22E025] flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(34,224,37,0.5)]">
-              <Check className="w-7 h-7" />
+          <div className="py-6 text-center space-y-4 animate-fade-in">
+            <div className="w-16 h-16 rounded-full bg-[#153A2D] text-[#22E025] border-2 border-[#22E025] flex items-center justify-center mx-auto shadow-[0_0_25px_rgba(34,224,37,0.5)]">
+              <Check className="w-8 h-8" />
             </div>
 
-            <h3 className="text-xl font-extrabold text-white">
-              Presença Confirmada!
-            </h3>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-extrabold text-white">
+                Presença Confirmada!
+              </h3>
+              <p className="text-xs text-gray-300">
+                Obrigado, <strong className="text-[#22E025]">{name}</strong> ({role})!
+              </p>
+            </div>
 
-            <p className="text-xs text-gray-300 max-w-xs mx-auto">
-              Obrigado, <strong className="text-white">{name}</strong>! Sua presença foi registrada com sucesso.
+            <p className="text-[11px] text-gray-400 max-w-xs mx-auto pt-1">
+              Redirecionando para a lista de presenças...
             </p>
 
             <button
-              onClick={() => setSubmitted(false)}
-              className="text-xs font-bold text-[#22E025] underline pt-2 inline-block cursor-pointer"
+              onClick={() => {
+                if (onDone) onDone();
+              }}
+              className="mt-4 px-4 py-2 rounded-xl bg-[#153A2D] hover:bg-[#1E4D3C] text-[#22E025] border border-[#22E025]/40 text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              Confirmar novamente
+              <span>Ver Lista de Presenças</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
