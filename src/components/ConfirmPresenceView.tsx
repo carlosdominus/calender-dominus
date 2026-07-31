@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { User, Sparkles, Check, ArrowRight, AlertCircle } from "lucide-react";
 import { CallOccurrence } from "../types";
+import { submitPresenceConfirmation } from "../utils/presenceStorage";
 
 interface ConfirmPresenceViewProps {
   call: CallOccurrence;
@@ -26,31 +27,20 @@ export const ConfirmPresenceView: React.FC<ConfirmPresenceViewProps> = ({ call, 
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("/api/confirm-presence", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          callId: call.id,
-          name: cleanName,
-          role,
-          status: "confirmed",
-        }),
-      });
+      const res = await submitPresenceConfirmation(call.id, cleanName, role);
 
-      const data = await res.json();
-
-      if (res.ok && data.success) {
+      if (res.success) {
         setSubmitted(true);
-        // Automatically switch to Presenças tab after 1.5s so user sees success first
+        // Automatically switch to Presenças tab after 1.2s so user sees success first
         setTimeout(() => {
           if (onDone) onDone();
-        }, 1500);
+        }, 1200);
       } else {
-        setErrorMsg(data.error || "Não foi possível registrar a presença. Tente novamente.");
+        setErrorMsg("Não foi possível registrar a presença. Tente novamente.");
       }
     } catch (err) {
       console.error("Erro ao confirmar presença:", err);
-      setErrorMsg("Falha na conexão com o servidor. Verifique sua internet.");
+      setErrorMsg("Ocorreu um erro ao registrar presença. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }

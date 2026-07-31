@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { PresenceConfirmation, CallOccurrence } from "../types";
 import { getUpcomingCalls } from "../utils/calendar";
+import { fetchAllPresences } from "../utils/presenceStorage";
 
 interface CallGroup {
   callId: string;
@@ -30,11 +31,8 @@ export const PresenceDashboardView: React.FC = () => {
 
   const fetchPresences = async () => {
     try {
-      const res = await fetch("/api/presences");
-      if (res.ok) {
-        const data: PresenceConfirmation[] = await res.json();
-        setPresences(data);
-      }
+      const data = await fetchAllPresences();
+      setPresences(data);
     } catch (err) {
       console.error("Erro ao carregar presenças:", err);
     } finally {

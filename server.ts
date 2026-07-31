@@ -219,9 +219,9 @@ app.post("/api/trigger-webhook", async (req, res) => {
   });
 });
 
-// Record Presence Confirmation and Optionally Send Webhook back to n8n
+// Record Presence Confirmation
 app.post("/api/confirm-presence", (req, res) => {
-  const { callId, name, email, role, status, notes, notifyN8n } = req.body;
+  const { callId, name, email, role, status, notes } = req.body;
 
   if (!name || !callId) {
     return res.status(400).json({ error: "Nome e callId são obrigatórios" });
@@ -231,148 +231,27 @@ app.post("/api/confirm-presence", (req, res) => {
     id: `pres-${Date.now()}`,
     callId,
     name: name.trim(),
-    email: email || "membro@adsata.com",
+    email: email || `${name.trim().toLowerCase().replace(/\s+/g, ".")}@adsata.com`,
     role: role || "Membro da Equipe",
     status: status || "confirmed",
     notes: notes || "",
     timestamp: new Date().toISOString(),
   };
 
+  // Prevent exact duplicate entries (same callId and same name)
+  presenceList = presenceList.filter(
+    (p) => !(p.callId === callId && p.name.toLowerCase() === newPresence.name.toLowerCase())
+  );
+
   presenceList.unshift(newPresence);
   savePresencesToDisk(presenceList);
 
-  // Return success response immediately so the UI is instantaneous
   res.json({
     success: true,
     presence: newPresence,
-    allPresences: presenceList.filter(p => p.callId === callId),
+    allPresences: presenceList.filter((p) => p.callId === callId),
   });
-
-  // Asynchronously trigger n8n notification in background
-  if (notifyN8n !== false) {
-    const payload = {
-      event: "PRESENCA_CONFIRMADA_CALL",
-      confirmationId: newPresence.id,
-      callId: newPresence.callId,
-      name: newPresence.name,
-      email: newPresence.email,
-      role: newPresence.role,
-      status: newPresence.status,
-      notes: newPresence.notes,
-      timestamp: newPresence.timestamp,
-      clickupMessage: `✅ *Presença Confirmada na Call:* ${newPresence.name} (${newPresence.role}) - Status: ${newPresence.status === 'confirmed' ? 'Confirmado' : newPresence.status === 'late' ? 'Irá se atrasar' : 'Ausente'}`,
-    };
-
-    const targetUrl = DEFAULT_WEBHOOK_URL;
-    const logEntry: WebhookLog = {
-      id: `log-res-${Date.now()}`,
-      type: "presence_response",
-      url: targetUrl,
-      payload,
-      status: "success",
-      timestamp: new Date().toISOString(),
-    };
-
-    fetch(targetUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-      .then(async (resp) => {
-        logEntry.statusCode = resp.status;
-        logEntry.response = (await resp.text()).slice(0, 500);
-        logEntry.status = resp.ok ? "success" : "error";
-        webhookLogs.push(logEntry);
-      })
-      .catch((e: any) => {
-        logEntry.status = "error";
-        logEntry.response = e.message;
-        webhookLogs.push(logEntry);
-      });
-  }
 });
-
-// Automated daily trigger at 07:00 AM on Mon, Wed, Fri
-let lastAutoTriggerDate = "";
-
-function checkAndAutoTriggerWebhook() {
-  const now = new Date();
-  
-  // Convert time to BRT (UTC-3)
-  const brtTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  const dayOfWeek = brtTime.getDay(); // 1 = Mon, 3 = Wed, 5 = Fri
-  const hours = brtTime.getHours();
-  const minutes = brtTime.getMinutes();
-  const todayStr = brtTime.toISOString().split("T")[0];
-
-  // If Monday (1), Wednesday (3), or Friday (5) and time is 07:00 AM
-  if ((dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) && hours === 7 && minutes === 0) {
-    if (lastAutoTriggerDate !== todayStr) {
-      lastAutoTriggerDate = todayStr;
-      
-      const dayNameMap: Record<number, "Segunda-feira" | "Quarta-feira" | "Sexta-feira"> = {
-        1: "Segunda-feira",
-        3: "Quarta-feira",
-        5: "Sexta-feira",
-      };
-      
-      const dayName = dayNameMap[dayOfWeek];
-      const topicInfo = callTopics[dayName] || { topic: "Call de Alinhamento Semanal Adsata", host: "Time Adsata" };
-      
-      const appBaseUrl = process.env.APP_URL || `http://localhost:${PORT}`;
-      const confirmationUrl = `${appBaseUrl}/?page=confirm&callId=call-${todayStr}`;
-
-      const payload = {
-        event: "AUTOMATIC_DISPATCH_07AM",
-        callId: `call-${todayStr}`,
-        dayOfWeek: dayName,
-        date: todayStr,
-        time: "16:00",
-        timeFormatted: "16:00h (Horário de Brasília)",
-        topic: topicInfo.topic,
-        host: topicInfo.host,
-        confirmationUrl,
-        messagePrompt: `🚨 *Call Adsata Hoje às 16:00h!*\n📌 *Pauta:* ${topicInfo.topic}\n👉 *Confirme sua presença aqui:* ${confirmationUrl}`,
-        timestamp: new Date().toISOString(),
-      };
-
-      console.log(`[07:00 AM AUTO DISPATCH] Triggering n8n webhook for ${dayName}...`);
-      
-      fetch(DEFAULT_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-        .then(async (res) => {
-          const respText = await res.text();
-          webhookLogs.push({
-            id: `auto-log-${Date.now()}`,
-            type: "dispatch_n8n",
-            url: DEFAULT_WEBHOOK_URL,
-            payload,
-            status: res.ok ? "success" : "error",
-            statusCode: res.status,
-            response: respText.slice(0, 500),
-            timestamp: new Date().toISOString(),
-          });
-        })
-        .catch((err) => {
-          webhookLogs.push({
-            id: `auto-log-${Date.now()}`,
-            type: "dispatch_n8n",
-            url: DEFAULT_WEBHOOK_URL,
-            payload,
-            status: "error",
-            response: err.message,
-            timestamp: new Date().toISOString(),
-          });
-        });
-    }
-  }
-}
-
-// Check every 30 seconds
-setInterval(checkAndAutoTriggerWebhook, 30000);
 
 async function startServer() {
   // Serve static assets or Vite middleware
