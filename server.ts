@@ -253,6 +253,37 @@ app.post("/api/confirm-presence", (req, res) => {
   });
 });
 
+// Update an existing presence confirmation
+app.put("/api/presence/:id", (req, res) => {
+  const { id } = req.params;
+  const { name, role, status } = req.body;
+
+  const index = presenceList.findIndex((p) => p.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: "Presença não encontrada" });
+  }
+
+  if (name) presenceList[index].name = name.trim();
+  if (role) presenceList[index].role = role;
+  if (status) presenceList[index].status = status;
+
+  savePresencesToDisk(presenceList);
+
+  res.json({
+    success: true,
+    presence: presenceList[index],
+  });
+});
+
+// Delete a presence confirmation
+app.delete("/api/presence/:id", (req, res) => {
+  const { id } = req.params;
+  presenceList = presenceList.filter((p) => p.id !== id);
+  savePresencesToDisk(presenceList);
+
+  res.json({ success: true, id });
+});
+
 async function startServer() {
   // Serve static assets or Vite middleware
   if (process.env.NODE_ENV !== "production") {

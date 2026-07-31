@@ -6,11 +6,16 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  UserCheck
+  UserCheck,
+  Edit3,
+  Trash2,
+  X,
+  Save,
+  Check
 } from "lucide-react";
 import { PresenceConfirmation, CallOccurrence } from "../types";
 import { getUpcomingCalls } from "../utils/calendar";
-import { fetchAllPresences } from "../utils/presenceStorage";
+import { fetchAllPresences, updatePresenceConfirmation, deletePresenceConfirmation } from "../utils/presenceStorage";
 
 interface CallGroup {
   callId: string;
@@ -29,6 +34,15 @@ export const PresenceDashboardView: React.FC = () => {
   const [expandedCallIds, setExpandedCallIds] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
+  // Edit State
+  const [editingItem, setEditingItem] = useState<PresenceConfirmation | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Delete State
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const fetchPresences = async () => {
     try {
       const data = await fetchAllPresences();
@@ -43,6 +57,30 @@ export const PresenceDashboardView: React.FC = () => {
   useEffect(() => {
     fetchPresences();
   }, []);
+
+  const handleStartEdit = (p: PresenceConfirmation) => {
+    setEditingItem(p);
+    setEditName(p.name);
+    setEditRole(p.role || "Editor de Criativo");
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem || !editName.trim()) return;
+
+    setIsSavingEdit(true);
+    await updatePresenceConfirmation(editingItem.id, editName.trim(), editRole);
+    await fetchPresences();
+    setIsSavingEdit(false);
+    setEditingItem(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    await deletePresenceConfirmation(id);
+    await fetchPresences();
+    setDeletingId(null);
+  };
 
   // Generate call groups using upcoming/past calendar calls + existing presences
   const calendarCalls = getUpcomingCalls(6);
@@ -281,7 +319,8 @@ export const PresenceDashboardView: React.FC = () => {
                               <th className="py-2.5 px-3">Participante</th>
                               <th className="py-2.5 px-3">Cargo / Área</th>
                               <th className="py-2.5 px-3">Status</th>
-                              <th className="py-2.5 px-3 text-right">Confirmado em</th>
+                              <th className="py-2.5 px-3">Confirmado em</th>
+                              <th className="py-2.5 px-3 text-right">Ações</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#1E272B]">
@@ -300,13 +339,37 @@ export const PresenceDashboardView: React.FC = () => {
                                     Confirmado
                                   </span>
                                 </td>
-                                <td className="py-3 px-3 text-right text-[10px] font-mono text-gray-500">
+                                <td className="py-3 px-3 text-[10px] font-mono text-gray-500">
                                   {p.timestamp
                                     ? new Date(p.timestamp).toLocaleTimeString("pt-BR", {
                                         hour: "2-digit",
                                         minute: "2-digit",
                                       })
                                     : "—"}
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <button
+                                      onClick={() => handleStartEdit(p)}
+                                      title="Editar Presença"
+                                      className="px-2.5 py-1 rounded-lg bg-[#12181B] hover:bg-[#1E272B] border border-[#232D32] hover:border-[#22E025]/50 text-gray-300 hover:text-[#22E025] transition-all cursor-pointer flex items-center gap-1 text-[11px] font-semibold"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                      <span>Editar</span>
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(`Deseja remover a presença de "${p.name}"?`)) {
+                                          handleDelete(p.id);
+                                        }
+                                      }}
+                                      disabled={deletingId === p.id}
+                                      title="Excluir Presença"
+                                      className="p-1.5 rounded-lg bg-[#12181B] hover:bg-rose-950/60 border border-[#232D32] hover:border-rose-500/50 text-gray-400 hover:text-rose-400 transition-all cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -321,6 +384,83 @@ export const PresenceDashboardView: React.FC = () => {
           })
         )}
       </div>
+
+      {/* Edit Presence Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="adsata-card max-w-md w-full p-6 space-y-5 border-[#22E025]/50 shadow-[0_0_40px_rgba(34,224,37,0.2)] relative">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#1E272B]">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-[#22E025]" />
+                <h3 className="text-base font-extrabold text-white">Editar Presença</h3>
+              </div>
+              <button
+                onClick={() => setEditingItem(null)}
+                className="p-1 rounded-lg hover:bg-[#1E272B] text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase text-gray-300">
+                  Nome do Participante <span className="text-[#22E025]">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-[#0B0F10] border border-[#1E272B] focus:border-[#22E025] rounded-xl py-2.5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#22E025]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase text-gray-300">
+                  Cargo / Área
+                </label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full bg-[#0B0F10] border border-[#1E272B] focus:border-[#22E025] rounded-xl py-2.5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#22E025] cursor-pointer"
+                >
+                  <option value="Editor de Criativo">Editor de Criativo</option>
+                  <option value="Copy de Criativo">Copy de Criativo</option>
+                  <option value="Copy de VSL">Copy de VSL</option>
+                  <option value="Editor de VSL">Editor de VSL</option>
+                  <option value="Gestor de Tráfego">Gestor de Tráfego</option>
+                  <option value="Head">Head</option>
+                  <option value="Membro da Equipe">Membro da Equipe</option>
+                </select>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#1E272B]">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="px-4 py-2 rounded-xl bg-[#12181B] hover:bg-[#1E272B] border border-[#232D32] text-xs font-bold text-gray-300 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit || !editName.trim()}
+                  className="px-4 py-2 rounded-xl bg-[#22E025] hover:bg-[#1fc822] text-black font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{isSavingEdit ? "Salvando..." : "Salvar Alterações"}</span>
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

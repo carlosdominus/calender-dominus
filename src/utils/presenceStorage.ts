@@ -117,3 +117,54 @@ export async function fetchAllPresences(): Promise<PresenceConfirmation[]> {
 
   return localList;
 }
+
+export async function updatePresenceConfirmation(
+  id: string,
+  name: string,
+  role: string
+): Promise<boolean> {
+  const cleanName = name.trim();
+  const current = getLocalPresences();
+  const index = current.findIndex((p) => p.id === id);
+
+  if (index !== -1) {
+    current[index] = {
+      ...current[index],
+      name: cleanName,
+      role: role || current[index].role,
+      email: `${cleanName.toLowerCase().replace(/\s+/g, ".")}@adsata.com`,
+    };
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(current));
+    } catch (err) {}
+  }
+
+  try {
+    const res = await fetch(`/api/presence/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: cleanName, role }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn("Update enviado localmente:", err);
+  }
+  return true;
+}
+
+export async function deletePresenceConfirmation(id: string): Promise<boolean> {
+  const current = getLocalPresences().filter((p) => p.id !== id);
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(current));
+  } catch (err) {}
+
+  try {
+    const res = await fetch(`/api/presence/${id}`, {
+      method: "DELETE",
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn("Remoção realizada localmente:", err);
+  }
+  return true;
+}
